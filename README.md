@@ -44,5 +44,6 @@
 
 
 ### Лабораторная работа #9. Создание растровых графических изображений
-- [Ссылка на фигму]([https://www.figma.com/file/6d4HJIeggLx6cUPdFG61BC/%D0%A2%D0%BE%D0%BB%D0%BA%D0%B0%D1%87%D0%B5%D0%B2-%D0%92.%D0%A1.-24%D0%B7?type=design&node-id=0%3A1&t=aI6lTCGcxOuiDud5-1](https://www.figma.com/file/tFzjXEe7NaEdr9n8KJ66QE/Барашков-М.М-24з?type=design&t=ujOAulcNjUq8iz01-0))
+- [Ссылка на фигму](https://www.figma.com/file/tFzjXEe7NaEdr9n8KJ66QE/Барашков-М.М-24з?type=design&node-id=0-1&t=ujOAulcNjUq8iz01-0)
+
 ![alt text](https://github.com/Mikhail-Bar/ComputerGraphicsAlgorithms/blob/master/src/Pic/22.JPG)
