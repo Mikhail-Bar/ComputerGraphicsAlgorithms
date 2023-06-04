@@ -121,14 +121,14 @@ public class DrawingProgram {
                 imageGraphics.fillRect(centerX - (width / 2), centerY - (height / 2), width, height);
 
                 if (clippingShape != null && mode == Mode.PDRAW) {
-                    g2d.setColor(Color.RED);
+                    g2d.setColor(Color.ORANGE);
                     g2d.setStroke(new BasicStroke(2));
                     g2d.draw(clippingShape);
                 }
 
 
                 if (clippedShape != null && mode == Mode.PDRAW) {
-                    g2d.setColor(new Color(255, 0, 0, 100));
+                    g2d.setColor(new Color(208, 105, 17, 255));
                     g2d.fill(clippedShape);
                 }
 
