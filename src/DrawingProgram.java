@@ -22,6 +22,15 @@ public class DrawingProgram {
     Color maincolor;
     DrawFrame drawFrame;
     DrawPanel drawPanel;
+    Rectangle userRectangle;
+    Line line;
+    JButton clipButton,deleteButton,moveButton,lineButton,drawRectButton;
+
+    public enum Mode {
+        DRAW, MOVE, NONE, LINE
+    }
+
+    public Mode mode;
 
 
     class DrawFrame extends JFrame {
@@ -39,7 +48,7 @@ public class DrawingProgram {
         private Graphics2D graphics;
 
         public DrawPanel() {
-            setPreferredSize(new Dimension(800, 800));
+            setPreferredSize(new Dimension(1200, 1200));
             image = new BufferedImage(getPreferredSize().width, getPreferredSize().height, BufferedImage.TYPE_INT_RGB);
             graphics = image.createGraphics();
             graphics.setColor(Color.WHITE);
@@ -59,6 +68,22 @@ public class DrawingProgram {
             graphics = (Graphics2D) g;
             g.drawImage(image, 0, 0, this);
 
+
+        }
+        private void drawLine(Graphics g) {
+            if (line.isSet()) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setColor(Color.BLUE);
+                g2d.drawLine(line.getStartX(), line.getStartY(), line.getEndX(), line.getEndY());
+            }
+        }
+
+        private void drawUserRectangle(Graphics g) {
+            if (userRectangle != null) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setColor(Color.GREEN);
+                g2d.drawRect(userRectangle.x, userRectangle.y, userRectangle.width, userRectangle.height);
+            }
         }
         @Override
         public void paint(Graphics g) {
@@ -84,6 +109,8 @@ public class DrawingProgram {
                     }
                 }
             } else {
+                drawLine(g);
+                drawUserRectangle(g);
                 g2d.setColor(color);
                 g2d.fillRect(centerX - (width / 2), centerY - (height / 2), width, height);
                 imageGraphics.setColor(color);
@@ -114,13 +141,16 @@ public class DrawingProgram {
 
     public DrawingProgram() {
         drawFrame = new DrawFrame("Приложение для рисования");
-        drawFrame.setSize(800, 650);
+        drawFrame.setSize(1150, 1000);
         drawFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         maincolor = Color.BLACK;
+        userRectangle = null;
+        line = new Line();
+        mode = Mode.NONE;
 
         JMenuBar menuBar = new JMenuBar();
         drawFrame.setJMenuBar(menuBar);
-        menuBar.setBounds(0, 0, 800, 30);
+        menuBar.setBounds(0, 0, 1000, 30);
         JMenu fileMenu = new JMenu("Файл");
         menuBar.add(fileMenu);
         JMenu DrawMenu = new JMenu("Отрисовать");
@@ -147,6 +177,13 @@ public class DrawingProgram {
         };
         JMenuItem BresenhamDraw = new JMenuItem(BresenhamAction);
         DrawMenu.add(BresenhamDraw);
+        Action CohenSutherlandAction = new AbstractAction("Алгоритма Коэна-Сазерленда") {
+            public void actionPerformed(ActionEvent event) {
+                showCohenSutherland();
+            }
+        };
+        JMenuItem CohenSutherlandDraw = new JMenuItem(CohenSutherlandAction);
+        DrawMenu.add(CohenSutherlandDraw);
         Action loadAction = new AbstractAction("Загрузить") {
             public void actionPerformed(ActionEvent event) {
                 JFileChooser jf = new JFileChooser();
@@ -227,15 +264,131 @@ public class DrawingProgram {
         fileMenu.add(saveasMenu);
 
         drawPanel = new DrawPanel();
-        drawPanel.setBounds(50, 40, 680, 510);
+        drawPanel.setBounds(50, 40, 1000, 800);
         drawPanel.setBackground(Color.WHITE);
         drawPanel.setOpaque(true);
         drawFrame.add(drawPanel);
         drawFrame.setLayout(null);
         drawFrame.setVisible(true);
-    }
 
+        JPanel buttonPanel = new JPanel();
+        clipButton = new JButton("Отсечение отрезка");
+        clipButton.setVisible(false);
+        clipButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                clipLine();
+                drawPanel.repaint();
+            }
+        });
+
+        deleteButton = new JButton("Удаление прямоугольника");
+        deleteButton.setVisible(false);
+        deleteButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                deleteRectangle();
+                mode = Mode.NONE;
+                drawPanel.repaint();
+            }
+        });
+        drawRectButton = new JButton("Рисование прямоугольника");
+        drawRectButton.setVisible(false);
+        drawRectButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                mode = Mode.DRAW;
+                drawPanel.repaint();
+            }
+        });
+        moveButton = new JButton("Перемещение прямоугольника");
+        moveButton.setVisible(false);
+        moveButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                mode = Mode.MOVE;
+                drawPanel.repaint();
+            }
+        });
+        lineButton = new JButton("Рисование отрезка");
+        lineButton.setVisible(false);
+        lineButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                mode = Mode.LINE;
+                drawPanel.repaint();
+            }
+        });
+        buttonPanel.add(drawRectButton);
+        buttonPanel.add(moveButton);
+        buttonPanel.add(deleteButton);
+        buttonPanel.add(lineButton);
+        buttonPanel.add(clipButton);
+
+        drawPanel.add(buttonPanel, BorderLayout.SOUTH);
+        drawPanel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (mode == Mode.DRAW) {
+                    userRectangle = new Rectangle(e.getX(), e.getY(), 0, 0);
+                }else if (mode == Mode.LINE) {
+                    line.setStartPoint(e.getX(), e.getY());
+                }
+
+                drawPanel.repaint();
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (mode == Mode.DRAW) {
+                    if (userRectangle != null) {
+                        int width = e.getX() - userRectangle.x;
+                        int height = e.getY() - userRectangle.y;
+                        userRectangle.width = Math.abs(width);
+                        userRectangle.height = Math.abs(height);
+                    }
+                }else if (mode == Mode.LINE) {
+                    line.setEndPoint(e.getX(), e.getY());
+                }
+
+                drawPanel.repaint();
+            }
+        });
+
+        drawPanel.addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (mode == Mode.DRAW) {
+                    if (userRectangle != null) {
+                        int width = e.getX() - userRectangle.x;
+                        int height = e.getY() - userRectangle.y;
+                        userRectangle.width = Math.abs(width);
+                        userRectangle.height = Math.abs(height);
+                    }
+                }else if (mode == Mode.MOVE) {
+                    if (userRectangle != null && userRectangle.contains(e.getX(), e.getY())) {
+                        userRectangle.x = e.getX() - userRectangle.width / 2;
+                        userRectangle.y = e.getY() - userRectangle.height / 2;
+                    }
+                }else if (mode == Mode.LINE) {
+                    line.setEndPoint(e.getX(), e.getY());
+                }
+
+                drawPanel.repaint();
+            }
+        });
+    }
+    private void showCohenSutherland(){
+        clipButton.setVisible(true);
+        deleteButton.setVisible(true);
+        lineButton.setVisible(true);
+        moveButton.setVisible(true);
+        drawRectButton.setVisible(true);
+        drawPanel.getGraphics().clearRect(0, 0, drawPanel.getWidth(), drawPanel.getHeight());
+
+    }
     private void showMosaicDialog() {
+        clipButton.setVisible(false);
+        deleteButton.setVisible(false);
+        lineButton.setVisible(false);
+        moveButton.setVisible(false);
+        drawRectButton.setVisible(false);
+
         JTextField widthField = new JTextField(5);
         JTextField heightField = new JTextField(5);
         JComboBox<String> blockSizeCombo = new JComboBox<>(new String[]{"2x2", "4x4", "8x8"});
@@ -272,6 +425,7 @@ public class DrawingProgram {
         int result = JOptionPane.showConfirmDialog(drawPanel, panel, "Параметры рисования", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
             try {
+                drawPanel.getGraphics().clearRect(0, 0, drawPanel.getWidth(), drawPanel.getHeight());
                 width = Integer.parseInt(widthField.getText());
                 height = Integer.parseInt(heightField.getText());
                 blockSize = getBlockSizeFromCombo(blockSizeCombo);
@@ -297,6 +451,12 @@ public class DrawingProgram {
     }
 
     private void showCustomDialog() {
+        clipButton.setVisible(false);
+        deleteButton.setVisible(false);
+        lineButton.setVisible(false);
+        moveButton.setVisible(false);
+        drawRectButton.setVisible(false);
+
         JTextField widthField = new JTextField(5);
         JTextField heightField = new JTextField(5);
         JButton colorButton = new JButton("Выбор цвета");
@@ -316,6 +476,7 @@ public class DrawingProgram {
         int result = JOptionPane.showConfirmDialog(drawPanel, panel, "Параметры рисования", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
             try {
+                drawPanel.getGraphics().clearRect(0, 0, drawPanel.getWidth(), drawPanel.getHeight());
                 width = Integer.parseInt(widthField.getText());
                 height = Integer.parseInt(heightField.getText());
                 drawPanel.repaint();
@@ -325,6 +486,12 @@ public class DrawingProgram {
         }
     }
     private void showBresenhamDialog() {
+        clipButton.setVisible(false);
+        deleteButton.setVisible(false);
+        lineButton.setVisible(false);
+        moveButton.setVisible(false);
+        drawRectButton.setVisible(false);
+
         JPanel panel = new JPanel();
         JLabel phi1Label = new JLabel("Начальный угол:");
         JTextField phi1Field = new JTextField("  0");
@@ -353,6 +520,99 @@ public class DrawingProgram {
                 JOptionPane.showMessageDialog(drawPanel, "Ошибка ввода данных! Введите числовые значения ширины, высоты.", "Ошибка", JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+    private void drawLine(Graphics g) {
+        if (line.isSet()) {
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setColor(Color.BLUE);
+            g2d.drawLine(line.getStartX(), line.getStartY(), line.getEndX(), line.getEndY());
+        }
+    }
+
+    private void drawUserRectangle(Graphics g) {
+        if (userRectangle != null) {
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setColor(Color.GREEN);
+            g2d.drawRect(userRectangle.x, userRectangle.y, userRectangle.width, userRectangle.height);
+        }
+    }
+
+    private void clipLine() {
+        if (line.isSet()) {
+            int startX = line.getStartX();
+            int startY = line.getStartY();
+            int endX = line.getEndX();
+            int endY = line.getEndY();
+
+            int codeStart = calculateCode(startX, startY);
+            int codeEnd = calculateCode(endX, endY);
+
+            boolean isVisible = false;
+
+            while (true) {
+                if ((codeStart | codeEnd) == 0) {
+                    isVisible = true;
+                    break;
+                } else if ((codeStart & codeEnd) != 0) {
+                    break;
+                } else {
+                    int x = 0, y = 0;
+                    int code = (codeStart != 0) ? codeStart : codeEnd;
+
+                    if ((code & Rectangle.OUT_LEFT) != 0) {
+                        x = userRectangle.x;
+                        y = startY + (endY - startY) * (x - startX) / (endX - startX);
+                    } else if ((code & Rectangle.OUT_RIGHT) != 0) {
+                        x = userRectangle.x + userRectangle.width;
+                        y = startY + (endY - startY) * (x - startX) / (endX - startX);
+                    } else if ((code & Rectangle.OUT_BOTTOM) != 0) {
+                        y = userRectangle.y + userRectangle.height;
+                        x = startX + (endX - startX) * (y - startY) / (endY - startY);
+                    } else if ((code & Rectangle.OUT_TOP) != 0) {
+                        y = userRectangle.y;
+                        x = startX + (endX - startX) * (y - startY) / (endY - startY);
+                    }
+
+                    if (code == codeStart) {
+                        startX = x;
+                        startY = y;
+                        codeStart = calculateCode(startX, startY);
+                    } else {
+                        endX = x;
+                        endY = y;
+                        codeEnd = calculateCode(endX, endY);
+                    }
+                }
+            }
+
+            if (isVisible) {
+                line.setStartPoint(startX, startY);
+                line.setEndPoint(endX, endY);
+            } else {
+                line.reset();
+            }
+        }
+    }
+
+    private void deleteRectangle() {
+        userRectangle = null;
+        mode = Mode.NONE;
+    }
+
+    private int calculateCode(int x, int y) {
+        int code = 0;
+
+        if (x < userRectangle.x)
+            code |= Rectangle.OUT_LEFT;
+        else if (x > userRectangle.x + userRectangle.width)
+            code |= Rectangle.OUT_RIGHT;
+
+        if (y < userRectangle.y)
+            code |= Rectangle.OUT_TOP;
+        else if (y > userRectangle.y + userRectangle.height)
+            code |= Rectangle.OUT_BOTTOM;
+
+        return code;
     }
     private void drawPrimitives(double phi1, double phi2, double deltaPhi) {
         double centerX = drawPanel.getWidth() / 2.0;
@@ -446,6 +706,49 @@ public class DrawingProgram {
                 continue;
             }
             delta += 2 * (++x - y--);
+        }
+    }
+    class Line {
+        private int startX, startY, endX, endY;
+        private boolean isSet;
+
+        public Line() {
+            isSet = false;
+        }
+
+        public void setStartPoint(int x, int y) {
+            startX = x;
+            startY = y;
+            isSet = true;
+        }
+
+        public void setEndPoint(int x, int y) {
+            endX = x;
+            endY = y;
+        }
+
+        public int getStartX() {
+            return startX;
+        }
+
+        public int getStartY() {
+            return startY;
+        }
+
+        public int getEndX() {
+            return endX;
+        }
+
+        public int getEndY() {
+            return endY;
+        }
+
+        public boolean isSet() {
+            return isSet;
+        }
+
+        public void reset() {
+            isSet = false;
         }
     }
 
