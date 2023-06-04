@@ -1,5 +1,7 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Area;
+import java.awt.geom.Path2D;
 import java.io.*;
 import javax.swing.*;
 import java.awt.image.*;
@@ -25,9 +27,11 @@ public class DrawingProgram {
     Rectangle userRectangle;
     Line line;
     JButton clipButton,deleteButton,moveButton,lineButton,drawRectButton;
+    Shape clippingShape, clippedShape;
+    Polygon clippingPolygon;
 
     public enum Mode {
-        DRAW, MOVE, NONE, LINE
+        DRAW, MOVE, NONE, LINE,PDRAW
     }
 
     public Mode mode;
@@ -116,6 +120,18 @@ public class DrawingProgram {
                 imageGraphics.setColor(color);
                 imageGraphics.fillRect(centerX - (width / 2), centerY - (height / 2), width, height);
 
+                if (clippingShape != null && mode == Mode.PDRAW) {
+                    g2d.setColor(Color.RED);
+                    g2d.setStroke(new BasicStroke(2));
+                    g2d.draw(clippingShape);
+                }
+
+
+                if (clippedShape != null && mode == Mode.PDRAW) {
+                    g2d.setColor(new Color(255, 0, 0, 100));
+                    g2d.fill(clippedShape);
+                }
+
             }
             imageGraphics.dispose();
 
@@ -147,6 +163,9 @@ public class DrawingProgram {
         userRectangle = null;
         line = new Line();
         mode = Mode.NONE;
+        clippingShape = null;
+        clippedShape = null;
+        clippingPolygon = null;
 
         JMenuBar menuBar = new JMenuBar();
         drawFrame.setJMenuBar(menuBar);
@@ -177,13 +196,20 @@ public class DrawingProgram {
         };
         JMenuItem BresenhamDraw = new JMenuItem(BresenhamAction);
         DrawMenu.add(BresenhamDraw);
-        Action CohenSutherlandAction = new AbstractAction("Алгоритма Коэна-Сазерленда") {
+        Action CohenSutherlandAction = new AbstractAction("Алгоритм Коэна-Сазерленда") {
             public void actionPerformed(ActionEvent event) {
                 showCohenSutherland();
             }
         };
         JMenuItem CohenSutherlandDraw = new JMenuItem(CohenSutherlandAction);
         DrawMenu.add(CohenSutherlandDraw);
+        Action  WeilerAthertonAction = new AbstractAction("Алгоритм Вейлера-Азертона") {
+            public void actionPerformed(ActionEvent event) {
+                showWeilerAtherton();
+            }
+        };
+        JMenuItem WeilerAthertonDraw = new JMenuItem(WeilerAthertonAction);
+        DrawMenu.add(WeilerAthertonDraw);
         Action loadAction = new AbstractAction("Загрузить") {
             public void actionPerformed(ActionEvent event) {
                 JFileChooser jf = new JFileChooser();
@@ -322,6 +348,8 @@ public class DrawingProgram {
 
         drawPanel.add(buttonPanel, BorderLayout.SOUTH);
         drawPanel.addMouseListener(new MouseAdapter() {
+            private int startX, startY;
+            private Polygon currentPolygon;
             @Override
             public void mousePressed(MouseEvent e) {
                 if (mode == Mode.DRAW) {
@@ -329,7 +357,33 @@ public class DrawingProgram {
                 }else if (mode == Mode.LINE) {
                     line.setStartPoint(e.getX(), e.getY());
                 }
+                else if (e.getButton() == MouseEvent.BUTTON1 && mode == Mode.PDRAW) {
+                    startX = e.getX();
+                    startY = e.getY();
+                    double size = 100;
+                    double centerX = startX;
+                    double centerY = startY;
 
+                    Path2D.Double path = new Path2D.Double();
+                    boolean firstPoint = true;
+
+                    path.moveTo(centerX - size, centerY + size);
+                    path.lineTo(centerX + size, centerY + size);
+                    path.lineTo(centerX + size / 2.0, centerY - size);
+                    path.lineTo(centerX - size / 2.0, centerY - size);
+                    path.closePath();
+
+                    clippingShape = path;
+                    updateClippedShape();
+                    drawPanel.repaint();
+                } else if (e.getButton() == MouseEvent.BUTTON3 && mode == Mode.PDRAW) {
+                    if (clippingPolygon == null) {
+                        currentPolygon = new Polygon();
+                        currentPolygon.addPoint(e.getX(), e.getY());
+                    } else {
+                        currentPolygon.addPoint(e.getX(), e.getY());
+                    }
+                }
                 drawPanel.repaint();
             }
 
@@ -344,6 +398,15 @@ public class DrawingProgram {
                     }
                 }else if (mode == Mode.LINE) {
                     line.setEndPoint(e.getX(), e.getY());
+                } else if (e.getButton() == MouseEvent.BUTTON3 && mode == Mode.PDRAW) {
+                    if (clippingPolygon == null) {
+                        clippingPolygon = currentPolygon;
+                    } else {
+                        currentPolygon.addPoint(e.getX(), e.getY());
+                    }
+                    updateClippingShape();
+                    updateClippedShape();
+                    drawPanel.repaint();
                 }
 
                 drawPanel.repaint();
@@ -373,6 +436,16 @@ public class DrawingProgram {
             }
         });
     }
+    private void showWeilerAtherton(){
+        mode = Mode.PDRAW;
+        clipButton.setVisible(false);
+        deleteButton.setVisible(false);
+        lineButton.setVisible(false);
+        moveButton.setVisible(false);
+        drawRectButton.setVisible(false);
+        drawPanel.getGraphics().clearRect(0, 0, drawPanel.getWidth(), drawPanel.getHeight());
+
+    }
     private void showCohenSutherland(){
         clipButton.setVisible(true);
         deleteButton.setVisible(true);
@@ -383,6 +456,7 @@ public class DrawingProgram {
 
     }
     private void showMosaicDialog() {
+        mode = Mode.NONE;
         clipButton.setVisible(false);
         deleteButton.setVisible(false);
         lineButton.setVisible(false);
@@ -451,6 +525,7 @@ public class DrawingProgram {
     }
 
     private void showCustomDialog() {
+        mode = Mode.NONE;
         clipButton.setVisible(false);
         deleteButton.setVisible(false);
         lineButton.setVisible(false);
@@ -486,6 +561,7 @@ public class DrawingProgram {
         }
     }
     private void showBresenhamDialog() {
+        mode = Mode.NONE;
         clipButton.setVisible(false);
         deleteButton.setVisible(false);
         lineButton.setVisible(false);
@@ -536,7 +612,23 @@ public class DrawingProgram {
             g2d.drawRect(userRectangle.x, userRectangle.y, userRectangle.width, userRectangle.height);
         }
     }
+    private void updateClippingShape() {
+        if (clippingPolygon != null) {
+            clippingShape = clippingPolygon;
+        } else {
+            clippingShape = null;
+        }
+    }
 
+    private void updateClippedShape() {
+        if (clippingShape != null && clippingPolygon != null) {
+            Area area = new Area(clippingShape);
+            area.intersect(new Area(clippingPolygon));
+            clippedShape = area;
+        } else {
+            clippedShape = null;
+        }
+    }
     private void clipLine() {
         if (line.isSet()) {
             int startX = line.getStartX();
